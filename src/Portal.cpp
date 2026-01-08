@@ -62,6 +62,31 @@ static bool parseNetworkIdFromString(const String& s, NetworkID& out) {
   return true;
 }
 
+// Validate an IPv4 address string: four octets 0..255 separated by '.'
+static bool isValidIPv4(const String& s) {
+  String str = s;
+  str.trim();
+  if (str.length() == 0) return false;
+  int parts = 0;
+  int len = str.length();
+  int i = 0;
+  while (i < len) {
+    int j = i;
+    while (j < len && str[j] != '.') j++;
+    String part = str.substring(i, j);
+    if (part.length() == 0) return false;
+    if (part.length() > 3) return false;
+    for (int k = 0; k < part.length(); ++k) {
+      if (part[k] < '0' || part[k] > '9') return false;
+    }
+    long val = part.toInt();
+    if (val < 0 || val > 255) return false;
+    parts++;
+    i = j + 1;
+  }
+  return parts == 4;
+}
+
 static const char* resetReasonToString(esp_reset_reason_t reason) {
   switch (reason) {
     case ESP_RST_UNKNOWN: return "UNKNOWN";
@@ -182,6 +207,12 @@ void Portal::handleGetConfig() {
   json += "\"wifiHostname\":\"" + jsonEscape(String(w.hostname)) + "\",";
   json += "\"wifiSsid\":\"" + jsonEscape(String(w.ssid)) + "\",";
   json += "\"wifiPass\":\"" + jsonEscape(String(w.password)) + "\",";
+  json += "\"wifiStatic\":" + String(w.useStaticIp ? "true" : "false") + ",";
+  json += "\"wifiIp\":\"" + jsonEscape(w.localIp.toString()) + "\",";
+  json += "\"wifiGw\":\"" + jsonEscape(w.gateway.toString()) + "\",";
+  json += "\"wifiMask\":\"" + jsonEscape(w.subnet.toString()) + "\",";
+  json += "\"wifiDns1\":\"" + jsonEscape(w.dns1.toString()) + "\",";
+  json += "\"wifiDns2\":\"" + jsonEscape(w.dns2.toString()) + "\",";
   json += "\"mqttHost\":\"" + jsonEscape(String(m.host)) + "\",";
   json += "\"mqttPort\":" + jsonEscape(String(m.port)) + ",";
   json += "\"mqttUser\":\"" + jsonEscape(String(m.username)) + "\",";
@@ -241,6 +272,54 @@ void Portal::handlePostConfig() {
   if (_srv.hasArg("wifiSsid"))     w.ssid     = _srv.arg("wifiSsid");
   if (_srv.hasArg("wifiPass"))     w.password = _srv.arg("wifiPass");
 
+  // IP statique / DHCP
+  if (_srv.hasArg("wifiStatic")) {
+    bool cur = w.useStaticIp;
+    bool v = parseBoolArg(_srv.arg("wifiStatic"), cur);
+    w.useStaticIp = v;
+  }
+  // Validate IP fields: if provided and invalid, reject the whole request
+  if (_srv.hasArg("wifiIp")) {
+    String s = _srv.arg("wifiIp");
+    if (s.length() && !isValidIPv4(s)) {
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"Adresse IP statique invalide (format attendu: a.b.c.d)\"}");
+      return;
+    }
+    IPAddress ip; if (s.length() && ip.fromString(s)) w.localIp = ip;
+  }
+  if (_srv.hasArg("wifiGw")) {
+    String s = _srv.arg("wifiGw");
+    if (s.length() && !isValidIPv4(s)) {
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"Adresse gateway invalide (format attendu: a.b.c.d)\"}");
+      return;
+    }
+    IPAddress ip; if (s.length() && ip.fromString(s)) w.gateway = ip;
+  }
+  if (_srv.hasArg("wifiMask")) {
+    String s = _srv.arg("wifiMask");
+    if (s.length() && !isValidIPv4(s)) {
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"Masque de réseau invalide (format attendu: a.b.c.d)\"}");
+      return;
+    }
+    IPAddress ip; if (s.length() && ip.fromString(s)) w.subnet = ip;
+  }
+  if (_srv.hasArg("wifiDns1")) {
+    String s = _srv.arg("wifiDns1");
+    if (s.length() && !isValidIPv4(s)) {
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"DNS 1 invalide (format attendu: a.b.c.d)\"}");
+      return;
+    }
+    IPAddress ip; if (s.length() && ip.fromString(s)) w.dns1 = ip;
+  }
+  if (_srv.hasArg("wifiDns2")) {
+    String s = _srv.arg("wifiDns2");
+    if (s.length() && !isValidIPv4(s)) {
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"DNS 2 invalide (format attendu: a.b.c.d)\"}");
+      return;
+    }
+    IPAddress ip; if (s.length() && ip.fromString(s)) w.dns2 = ip;
+  }
+
   // Champs MQTT
   if (_srv.hasArg("mqttHost"))     m.host     = _srv.arg("mqttHost");
   if (_srv.hasArg("mqttPort"))     m.port     = (uint16_t)_srv.arg("mqttPort").toInt();
@@ -258,7 +337,8 @@ void Portal::handlePostConfig() {
       info("[PORTAIL] NetworkID mis à jour: %s", networkIdToStr(nid).c_str());
     } else {
       info("[PORTAIL] NetworkID invalide reçu: '%s'", s.c_str());
-      // On laisse le NetworkID actuel si parsing ko
+      _srv.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"NetworkID invalide (format attendu: AA:BB:CC:DD en hexadécimal)\"}");
+      return;
     }
   }
 
@@ -1147,6 +1227,41 @@ String Portal::html() {
               <button type='button' data-toggle='#wifiPass'>Afficher</button>
             </div>
           </div>
+          <div style='margin-top:10px'>
+            <label class='check-row'>
+              <input id='wifiStatic' type='checkbox'>
+              <span>Utiliser une IP statique (DHCP désactivé)</span>
+            </label>
+            <div class='hint'>Cochez pour saisir une adresse IP, gateway, masque et DNS.</div>
+          </div>
+
+          <div id='wifiStaticBlock' style='display:none;margin-top:6px'>
+            <div style='margin-top:8px' class='grid-3'>
+              <div class='row'>
+                <label>Adresse IP</label>
+                <input id='wifiIp' type='text' placeholder='192.168.1.50'>
+              </div>
+              <div class='row'>
+                <label>Gateway</label>
+                <input id='wifiGw' type='text' placeholder='192.168.1.1'>
+              </div>
+              <div class='row'>
+                <label>Masque</label>
+                <input id='wifiMask' type='text' placeholder='255.255.255.0'>
+              </div>
+            </div>
+
+            <div style='margin-top:8px' class='grid-2'>
+              <div class='row'>
+                <label>DNS 1</label>
+                <input id='wifiDns1' type='text' placeholder='1.1.1.1'>
+              </div>
+              <div class='row'>
+                <label>DNS 2</label>
+                <input id='wifiDns2' type='text' placeholder='8.8.8.8'>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class='card' style='background:#14171f;margin-bottom:12px'>
@@ -1391,7 +1506,7 @@ const $ = sel => document.querySelector(sel);
 const msg = (t) => { const m=$("#msg"); if(!m) return; m.textContent=t; m.classList.add("show"); };
 
 const FIELDS = [
-  "wifiHostname","wifiSsid","wifiPass",
+  "wifiHostname","wifiSsid","wifiPass","wifiStatic","wifiIp","wifiGw","wifiMask","wifiDns1","wifiDns2",
   "mqttHost","mqttPort","mqttUser","mqttPass",
   "mqttClientId","mqttBaseTopic",
   "networkID","useConnect","useSondeExt","useDS18B20",
@@ -1467,11 +1582,16 @@ async function saveConfig(e) {
   e.preventDefault();
   const fd = new FormData();
   FIELDS.forEach(id => {
-    const el = $("#"+id);
+    const el = document.querySelector('#'+id);
     if (!el) return;
 
+    // If static IP mode is not enabled, don't send IP-related fields
+    if ((id === 'wifiIp' || id === 'wifiGw' || id === 'wifiMask' || id === 'wifiDns1' || id === 'wifiDns2')) {
+      const localChk = document.querySelector('#wifiStatic');
+      if (!(localChk && localChk.checked)) return;
+    }
+
     if (el.type === "checkbox") {
-      // On force "true"/"false" pour que parseBoolArg soit content
       fd.append(id, el.checked ? "true" : "false");
     } else {
       fd.append(id, el.value);
@@ -1497,7 +1617,7 @@ async function saveConfig(e) {
       };
       setTimeout(tryReload, 4000);
     } else {
-      msg("Erreur: " + (j.err || "inconnue"));
+      msg("Erreur : " + (j.err || "inconnue"));
     }
   } catch(e) {
     msg("Erreur réseau lors de l'enregistrement.");
@@ -1649,6 +1769,15 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   if (chkConnect) chkConnect.addEventListener("change", updatePairButtons);
   if (chkSonde)   chkSonde.addEventListener("change", updatePairButtons);
+  const chkStatic = $("#wifiStatic");
+  const staticBlock = $("#wifiStaticBlock");
+  const ipInputs = ["#wifiIp","#wifiGw","#wifiMask","#wifiDns1","#wifiDns2"].map(s=>document.querySelector(s));
+  function updateStaticInputs(){
+    const enabled = chkStatic && chkStatic.checked;
+    if (staticBlock) staticBlock.style.display = enabled ? 'block' : 'none';
+    ipInputs.forEach(i=>{ if(!i) return; i.disabled = !enabled; i.style.opacity = enabled ? '1' : '0.6'; });
+  }
+  if (chkStatic) chkStatic.addEventListener('change', updateStaticInputs);
   if (chkZ1)      chkZ1.addEventListener("change", updatePairButtons);
   if (chkZ2)      chkZ2.addEventListener("change", updatePairButtons);
   if (chkZ3)      chkZ3.addEventListener("change", updatePairButtons);
@@ -1674,6 +1803,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
     setTimeout(scheduleStatusRefresh, 5000);
   };
   scheduleStatusRefresh();
+  // after loading config we want inputs to be correctly enabled
+  setTimeout(()=>{ if (typeof updateStaticInputs === 'function') updateStaticInputs(); }, 200);
 });
 </script>
 
