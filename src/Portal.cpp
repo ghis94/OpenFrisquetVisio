@@ -1556,6 +1556,15 @@ function updatePairButtons() {
 }
 
 
+// Update the visibility / enabled state of the static IP inputs.
+function updateStaticInputs(){
+  const chkStatic = document.querySelector('#wifiStatic');
+  const staticBlock = document.querySelector('#wifiStaticBlock');
+  const ipInputs = ["#wifiIp","#wifiGw","#wifiMask","#wifiDns1","#wifiDns2"].map(s=>document.querySelector(s));
+  const enabled = chkStatic && chkStatic.checked;
+  if (staticBlock) staticBlock.style.display = enabled ? 'block' : 'none';
+  ipInputs.forEach(i=>{ if(!i) return; i.disabled = !enabled; i.style.opacity = enabled ? '1' : '0.6'; });
+}
 
 async function loadConfig() {
   try {
@@ -1572,6 +1581,8 @@ async function loadConfig() {
       }
     });
     updatePairButtons();
+    // ensure static IP block is in correct state after loading config
+    try { updateStaticInputs(); } catch(e){}
   } catch(e) {
     msg("Impossible de charger la configuration.");
   }
@@ -1769,22 +1780,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   if (chkConnect) chkConnect.addEventListener("change", updatePairButtons);
   if (chkSonde)   chkSonde.addEventListener("change", updatePairButtons);
-  const chkStatic = $("#wifiStatic");
-  const staticBlock = $("#wifiStaticBlock");
-  const ipInputs = ["#wifiIp","#wifiGw","#wifiMask","#wifiDns1","#wifiDns2"].map(s=>document.querySelector(s));
-  function updateStaticInputs(){
-    const enabled = chkStatic && chkStatic.checked;
-    if (staticBlock) staticBlock.style.display = enabled ? 'block' : 'none';
-    ipInputs.forEach(i=>{ if(!i) return; i.disabled = !enabled; i.style.opacity = enabled ? '1' : '0.6'; });
-  }
-  if (chkStatic) chkStatic.addEventListener('change', updateStaticInputs);
   if (chkZ1)      chkZ1.addEventListener("change", updatePairButtons);
   if (chkZ2)      chkZ2.addEventListener("change", updatePairButtons);
   if (chkZ3)      chkZ3.addEventListener("change", updatePairButtons);
   if (chkZone1)   chkZone1.addEventListener("change", updatePairButtons);
   if (chkZone2)   chkZone2.addEventListener("change", updatePairButtons);
   if (chkZone3)   chkZone3.addEventListener("change", updatePairButtons);
-
   const btnPairConnect = $("#btnPairConnect");
   const btnPairSonde   = $("#btnPairSondeExt");
   const btnPairSatZ1   = $("#btnPairSatZ1");
@@ -1797,14 +1798,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if (btnPairSatZ2)   btnPairSatZ2.addEventListener("click", ()=>pairSatellite("2"));
   if (btnPairSatZ3)   btnPairSatZ3.addEventListener("click", ()=>pairSatellite("3"));
 
+  // Attach change listener for the wifi static checkbox to update static inputs
+  const chkStatic = $("#wifiStatic");
+  if (chkStatic) chkStatic.addEventListener('change', updateStaticInputs);
+
+  // Handle page show (bfcache/back navigation) to restore UI state
+  window.addEventListener('pageshow', ()=>{ updateStaticInputs(); updatePairButtons(); });
+
   loadConfig();
   const scheduleStatusRefresh = async () => {
     await loadStatus();
     setTimeout(scheduleStatusRefresh, 5000);
   };
   scheduleStatusRefresh();
-  // after loading config we want inputs to be correctly enabled
-  setTimeout(()=>{ if (typeof updateStaticInputs === 'function') updateStaticInputs(); }, 200);
+  // after loading config we want inputs to be correctly enabled (safety)
+  setTimeout(()=>{ try{ updateStaticInputs(); }catch(e){} }, 200);
 });
 </script>
 
