@@ -611,10 +611,25 @@ void Portal::handleMemoryRead() {
     byte resp[32];
     size_t respLen = sizeof(resp);
 
+   uint8_t idExpediteur = 0x00;
+   uint8_t idAssociation = 0x00;
+    if(_frisquetManager.config().useConnect() && _frisquetManager.connect().estAssocie()) {
+      idExpediteur = ID_CONNECT;
+      idAssociation = _frisquetManager.connect().getIdAssociation();
+    } else if(_frisquetManager.config().useSatelliteZ1() && _frisquetManager.satelliteZ1().estAssocie()) {
+      idExpediteur = ID_ZONE_1;
+      idAssociation = _frisquetManager.satelliteZ1().getIdAssociation();
+    }
+    if(idExpediteur == 0x00) {
+      _srv.send(400, "application/json; charset=utf-8",
+                "{\"ok\":false,\"err\":\"Aucun module émetteur associé (Connect ou Satellite Z1)\"}");
+      return;
+    }
+
     int16_t err = _frisquetManager.radio().sendAsk(
-        ID_CONNECT,
+        idExpediteur,
         ID_CHAUDIERE,
-        _frisquetManager.connect().getIdAssociation(),
+        idAssociation,
         ++s_memoryMessageId,
         0x01,
         addr,
@@ -1654,8 +1669,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if (btnPairSatZ3)   btnPairSatZ3.addEventListener("click", ()=>pairSatellite("3"));
 
   loadConfig();
-  loadStatus();
-  setInterval(loadStatus, 5000);
+  const scheduleStatusRefresh = async () => {
+    await loadStatus();
+    setTimeout(scheduleStatusRefresh, 5000);
+  };
+  scheduleStatusRefresh();
 });
 </script>
 

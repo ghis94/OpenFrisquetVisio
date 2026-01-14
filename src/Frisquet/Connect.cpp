@@ -332,6 +332,54 @@ bool Connect::recupererModeECS() {
 
     return false;
 }
+
+bool Connect::recupererPression() {
+    if(! estAssocie()) {
+        return false;
+    }
+
+
+    struct {
+        FrisquetRadio::RadioTrameHeader header;
+        uint8_t longueurDonnees;
+        fword pression;
+    } buff;
+    
+
+    size_t length = 0;
+    int16_t err;
+
+    uint8_t retry = 0;
+    do {
+        //length = sizeof(buff);
+        err = this->radio().sendAsk(
+            this->getId(), 
+            ID_CHAUDIERE, 
+            this->getIdAssociation(),
+            this->incrementIdMessage(),
+            0x01,
+            0x7A06 + (ID_CHAUDIERE == 0x84 ? 0xC8 : 0x00),
+            0x0001,
+            (byte*)&buff,
+            length
+        );
+
+        if(err != RADIOLIB_ERR_NONE) {
+            delay(10);
+            continue;
+        }
+        
+        uint16_t raw = buff.pression.toUInt16();
+        float pression = (raw / 5120.0);
+        setPression(pression);
+        debug("[CONNECT] pression reçue brut=0x%02X, réelle:0x%0.2f", raw, getPression());
+
+        return true;
+    } while(retry++ < 1);
+
+    return false;
+}
+
 Connect::MODE_ECS Connect::getModeECS() {
     return _modeECS;
 }
@@ -609,6 +657,15 @@ void Connect::begin() {
             mqtt().publishState(_mqttEntities.modeECS, getNomModeECS());
         }
     });
+
+  // SENSOR: Pression
+  _mqttEntities.pression.id = "pression";
+  _mqttEntities.pression.name = "Pression";
+  _mqttEntities.pression.component = "sensor";
+  _mqttEntities.pression.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "pression"}), 0, true);
+  _mqttEntities.pression.set("device_class", "pressure");  
+  _mqttEntities.pression.set("unit_of_measurement", "bar");
+  mqtt().registerEntity(*device, _mqttEntities.pression, true);
 }
 
 void Connect::loop() {
@@ -628,6 +685,13 @@ void Connect::loop() {
                 error("[CONNECT] Échec de la récupération des températures.");
             }
             delay(100);
+            info("[CONNECT] Récupération de la pression...");
+            if(recupererPression()) {
+                publishMqtt();
+            } else {
+                _lastRecuperationTemperatures = now <= 60000 ? 1 : now - 60000;
+                error("[CONNECT] Échec de la récupération des températures.");
+            }
         }
 
         if (now - _lastRecuperationConsommation >= 3600000 || _lastRecuperationConsommation == 0) { // 1 heure
@@ -717,7 +781,19 @@ void Connect::publishMqtt() {
         }
     }
 
-     if(getModeECS() != MODE_ECS::INCONNU) {
+    if(getModeECS() != MODE_ECS::INCONNU) {
         mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("modeECS"), getNomModeECS().c_str());
     }
+    
+    if( !isnan(getPression())) {
+        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("pression"), getPression());
+    }
+}
+
+void Connect::setPression(float pression) {
+    _pression = pression;
+}
+
+float Connect::getPression() {
+    return _pression;
 }

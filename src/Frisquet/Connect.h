@@ -46,6 +46,7 @@ class Connect : public FrisquetDevice {
         bool envoyerModeECS();
         bool recupererTemperatures();
         bool recupererConsommation();
+        bool recupererPression();
         bool recupererModeECS();
 
         float getTemperatureExterieure();
@@ -72,6 +73,8 @@ class Connect : public FrisquetDevice {
         float _temperatureCDC = NAN;
         float _temperatureExterieure = NAN;
         
+        float _pression = NAN;
+        
         int16_t _consommationGazECS = -1;
         int16_t _consommationGazChauffage = -1;
 
@@ -83,6 +86,9 @@ class Connect : public FrisquetDevice {
 
         void setConsommationECS(int16_t consommation);
         void setConsommationChauffage(int16_t consommation);
+
+        void setPression(float pression);
+        float getPression();
 
         void envoiZones();
 
@@ -104,5 +110,6 @@ class Connect : public FrisquetDevice {
             MqttEntity tempExterieure;
             MqttEntity consommationChauffage;
             MqttEntity consommationECS;
+            MqttEntity pression;
         } _mqttEntities;
 };
