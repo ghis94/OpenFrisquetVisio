@@ -1811,8 +1811,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
     setTimeout(scheduleStatusRefresh, 5000);
   };
   scheduleStatusRefresh();
-  // after loading config we want inputs to be correctly enabled (safety)
-  setTimeout(()=>{ try{ updateStaticInputs(); }catch(e){} }, 200);
 });
 </script>
 
