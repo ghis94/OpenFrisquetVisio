@@ -88,6 +88,7 @@ class Connect : public FrisquetDevice {
 
         void setPression(float pression);
         float getPression();
+        bool handlePassiveReadResponse(uint16_t adresseMemoire, const byte* buff, size_t length);
 
         void envoiZones();
 

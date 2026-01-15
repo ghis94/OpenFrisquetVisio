@@ -50,7 +50,9 @@ void FrisquetManager::begin()
 
     if (_cfg.useConnect()) {
         _connect.begin();
-        _connect.recupererDate();
+        if (!_cfg.useConnectPassive()) {
+            _connect.recupererDate();
+        }
     }
 
     if (_cfg.useSondeExterieure()) {
@@ -176,7 +178,9 @@ void FrisquetManager::onRadioReceive()
     }
 
     FrisquetRadio::RadioTrameHeader *header = (FrisquetRadio::RadioTrameHeader *)buff;
-    if (header->idDestinataire == _connect.getId() && _cfg.useConnect()) {
+    if (_cfg.useConnect() &&
+        (header->idDestinataire == _connect.getId() ||
+         (_cfg.useConnectPassive() && header->idExpediteur == _connect.getId() && header->idDestinataire == ID_CHAUDIERE))) {
         info("[RADIO] Traitement données Connect");
         _connect.onReceive(buff, length);
     } else if (header->idDestinataire == _satelliteZ1.getId() && _cfg.useSatelliteZ1() && _cfg.useSatelliteVirtualZ1()) {

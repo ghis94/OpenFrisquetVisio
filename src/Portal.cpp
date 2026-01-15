@@ -227,6 +227,8 @@ void Portal::handleGetConfig() {
 
   json += "\"useConnect\":" +
           String(_frisquetManager.config().useConnect() ? "true" : "false") + ",";
+  json += "\"useConnectPassive\":" +
+          String(_frisquetManager.config().useConnectPassive() ? "true" : "false") + ",";
   json += "\"useSondeExt\":" +
           String(_frisquetManager.config().useSondeExterieure() ? "true" : "false") + ",";
   json += "\"useDS18B20\":" +
@@ -348,6 +350,14 @@ void Portal::handlePostConfig() {
     bool cur = _frisquetManager.config().useConnect();
     bool v = parseBoolArg(_srv.arg("useConnect"), cur);
     _frisquetManager.config().useConnect(v);
+  }
+  if (_srv.hasArg("useConnectPassive")) {
+    bool cur = _frisquetManager.config().useConnectPassive();
+    bool v = parseBoolArg(_srv.arg("useConnectPassive"), cur);
+    if (!_frisquetManager.config().useConnect()) {
+      v = false;
+    }
+    _frisquetManager.config().useConnectPassive(v);
   }
   if (_srv.hasArg("useSondeExt")) {
     bool cur = _frisquetManager.config().useSondeExterieure();
@@ -907,6 +917,11 @@ void Portal::handlePairConnect() {
               "{\"ok\":false,\"err\":\"Connect désactivé dans la configuration\"}");
     return;
   }
+  if (_frisquetManager.config().useConnectPassive()) {
+    _srv.send(400, "application/json; charset=utf-8",
+              "{\"ok\":false,\"err\":\"Mode passif activé : association Connect désactivée\"}");
+    return;
+  }
 
   info("[PORTAIL] Demande d'association du module Connect");
 
@@ -1343,6 +1358,15 @@ String Portal::html() {
               </button>
             </div>
           </div>
+          <div class='grid-2' style='margin-top:8px'>
+            <div class='row'>
+              <label class='check-row'>
+                <input id='useConnectPassive' type='checkbox'>
+                <span>Mode passif Connect</span>
+                <div class='hint'>N'envoie aucune trame, écoute seulement les réponses chaudière.</div>
+              </label>
+            </div>
+          </div>
 
           <div class='grid-3' style="margin-top:10px">
             <div class='row'>
@@ -1528,7 +1552,7 @@ const FIELDS = [
   "wifiHostname","wifiSsid","wifiPass","wifiStatic","wifiIp","wifiGw","wifiMask","wifiDns1","wifiDns2",
   "mqttHost","mqttPort","mqttUser","mqttPass",
   "mqttClientId","mqttBaseTopic",
-  "networkID","useConnect","useSondeExt","useDS18B20",
+  "networkID","useConnect","useConnectPassive","useSondeExt","useDS18B20",
   "useZone1","useZone2","useZone3",
   "useSatelliteZ1","useSatelliteZ2","useSatelliteZ3",
   "useSatelliteVirtualZ1","useSatelliteVirtualZ2","useSatelliteVirtualZ3"
@@ -1536,12 +1560,20 @@ const FIELDS = [
 
 function updatePairButtons() {
   const chkConnect = $("#useConnect");
+  const chkConnectPassive = $("#useConnectPassive");
   const chkSonde   = $("#useSondeExt");
   const btnConnect = $("#btnPairConnect");
   const btnSonde   = $("#btnPairSondeExt");
 
   if (chkConnect && btnConnect) {
-    btnConnect.style.display = chkConnect.checked ? "inline-flex" : "none";
+    const passive = chkConnectPassive && chkConnectPassive.checked;
+    btnConnect.style.display = (chkConnect.checked && !passive) ? "inline-flex" : "none";
+  }
+  if (chkConnectPassive) {
+    chkConnectPassive.disabled = !chkConnect || !chkConnect.checked;
+    if (chkConnectPassive.disabled) {
+      chkConnectPassive.checked = false;
+    }
   }
   if (chkSonde && btnSonde) {
     btnSonde.style.display = chkSonde.checked ? "inline-flex" : "none";
@@ -1806,6 +1838,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   const chkConnect = $("#useConnect");
+  const chkConnectPassive = $("#useConnectPassive");
   const chkSonde   = $("#useSondeExt");
   const chkZ1      = $("#useSatelliteZ1");
   const chkZ2      = $("#useSatelliteZ2");
@@ -1815,6 +1848,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const chkZone3   = $("#useZone3");
 
   if (chkConnect) chkConnect.addEventListener("change", updatePairButtons);
+  if (chkConnectPassive) chkConnectPassive.addEventListener("change", updatePairButtons);
   if (chkSonde)   chkSonde.addEventListener("change", updatePairButtons);
   if (chkZ1)      chkZ1.addEventListener("change", updatePairButtons);
   if (chkZ2)      chkZ2.addEventListener("change", updatePairButtons);

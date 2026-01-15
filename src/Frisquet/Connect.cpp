@@ -1,5 +1,6 @@
 #include "Connect.h"
 #include "../Buffer.h"
+#include <cstring>
 #include <math.h>
 
 void Connect::loadConfig() {
@@ -434,17 +435,166 @@ bool Connect::envoyerModeECS() {
     return false;
 }
 
-bool Connect::onReceive(byte* donnees, size_t length) {
-    if(! estAssocie()) {
-        return false;
+bool Connect::handlePassiveReadResponse(uint16_t adresseMemoire, const byte* buff, size_t length) {
+    const uint16_t addrInformations = 0x79E0;
+    const uint16_t addrConsommation = 0x7A18;
+    const uint16_t addrModeEcs = 0xA0FC;
+
+    auto addrIsInformations = adresseMemoire == addrInformations || adresseMemoire == (addrInformations + 0x00C8);
+    auto addrIsConsommation = adresseMemoire == addrConsommation || adresseMemoire == (addrConsommation + 0x00C8);
+
+    if (addrIsInformations) {
+        struct {
+            FrisquetRadio::RadioTrameHeader header;
+            uint8_t longueurDonnees;
+            temperature16 temperatureECS;
+            temperature16 temperatureCDC;
+            temperature16 temperatureDepartZ1;
+            temperature16 temperatureDepartZ2;
+            temperature16 temperatureDepartZ3;
+            temperature16 temperatureInconnue1;
+            temperature16 temperatureInconnue2;
+            temperature16 temperatureInconnue3;
+            temperature16 temperatureInconnue4;
+            temperature16 temperatureInconnue5;
+            pression16 pression;
+            byte i1[1] = {0};
+            byte modeECS;
+            temperature16 temperatureECSInstant;
+            byte i2[10] = {0};
+            temperature16 temperatureAmbianteZ1;
+            temperature16 temperatureAmbianteZ2;
+            temperature16 temperatureAmbianteZ3;
+            byte i3[6] = {0};
+            temperature16 temperatureConsigneZ1;
+            temperature16 temperatureConsigneZ2;
+            temperature16 temperatureConsigneZ3;
+            temperature16 temperatureExterieure;
+        } resp;
+
+        if (length < sizeof(resp)) {
+            return false;
+        }
+        memcpy(&resp, buff, sizeof(resp));
+
+        if (getZone1().getSource() == Zone::SOURCE::CONNECT) {
+            getZone1().setTemperatureAmbiante(resp.temperatureAmbianteZ1.toFloat());
+            getZone1().setTemperatureConsigne(resp.temperatureConsigneZ1.toFloat());
+        }
+        getZone1().setTemperatureDepart(resp.temperatureDepartZ1.toFloat());
+
+        if (getZone2().getSource() == Zone::SOURCE::CONNECT) {
+            getZone2().setTemperatureAmbiante(resp.temperatureAmbianteZ2.toFloat());
+            getZone2().setTemperatureConsigne(resp.temperatureConsigneZ2.toFloat());
+        }
+        getZone2().setTemperatureDepart(resp.temperatureDepartZ2.toFloat());
+
+        if (getZone3().getSource() == Zone::SOURCE::CONNECT) {
+            getZone3().setTemperatureAmbiante(resp.temperatureAmbianteZ3.toFloat());
+            getZone3().setTemperatureConsigne(resp.temperatureConsigneZ3.toFloat());
+        }
+        getZone3().setTemperatureDepart(resp.temperatureDepartZ3.toFloat());
+
+        setTemperatureExterieure(resp.temperatureExterieure.toFloat());
+        setTemperatureECS(resp.temperatureECS.toFloat());
+        setTemperatureCDC(resp.temperatureCDC.toFloat());
+        setPression(resp.pression.toFloat());
+
+        _lastRecuperationTemperatures = millis();
+        publishMqtt();
+        _zone1.publishMqtt();
+        _zone2.publishMqtt();
+        _zone3.publishMqtt();
+        return true;
     }
 
+    if (addrIsConsommation) {
+        struct {
+            FrisquetRadio::RadioTrameHeader header;
+            uint8_t longueurDonnees;
+            byte i1[18] = {0};
+            fword consommationECS;
+            fword consommationChauffage;
+            byte i2[34] = {0};
+        } resp;
+
+        if (length < sizeof(resp)) {
+            return false;
+        }
+        memcpy(&resp, buff, sizeof(resp));
+
+        setConsommationChauffage(resp.consommationChauffage.toInt16());
+        setConsommationECS(resp.consommationECS.toInt16());
+        _lastRecuperationConsommation = millis();
+        publishMqtt();
+        return true;
+    }
+
+    if (adresseMemoire == addrModeEcs) {
+        struct {
+            FrisquetRadio::RadioTrameHeader header;
+            uint8_t longueurDonnees;
+            byte i1;
+            byte modeECS;
+        } resp;
+
+        if (length < sizeof(resp)) {
+            return false;
+        }
+        memcpy(&resp, buff, sizeof(resp));
+
+        uint8_t raw = resp.modeECS;
+        uint8_t masked = raw & 0x7F;
+        info("[CONNECT] modeECS reçu brut=0x%02X, masqué=0x%02X", raw, masked);
+        setModeECS((MODE_ECS)masked);
+        _lastRecuperationModeECS = millis();
+        publishMqtt();
+        return true;
+    }
+
+    return false;
+}
+
+bool Connect::onReceive(byte* donnees, size_t length) {
     ReadBuffer readBuffer(donnees, length);
 
     FrisquetRadio::RadioTrameHeader header;
     if(readBuffer.remainingLength() < sizeof(header)) { return false; }
 
     readBuffer.getBytes((byte*)&header, sizeof(header));
+
+    bool passive = getConfig().useConnectPassive();
+    if(! estAssocie() && !passive) {
+        return false;
+    }
+
+    if (header.type == FrisquetRadio::MessageType::READ) {
+        if (passive && header.idExpediteur == getId() && header.idDestinataire == ID_CHAUDIERE) {
+            if(readBuffer.remainingLength() < sizeof(FrisquetRadio::RadioTrameAsk)) { return false; }
+            FrisquetRadio::RadioTrameAsk requete;
+            readBuffer.getBytes((byte*)&requete, sizeof(requete));
+
+            size_t lengthRx = 0;
+            byte buffRx[RADIOLIB_SX126X_MAX_PACKET_LENGTH];
+            int16_t err = radio().receiveExpected(
+                ID_CHAUDIERE,
+                getId(),
+                header.idAssociation,
+                header.idMessage,
+                header.idReception | 0x80,
+                header.type,
+                buffRx,
+                lengthRx,
+                15,
+                true
+            );
+            if (err != RADIOLIB_ERR_NONE) {
+                return false;
+            }
+            return handlePassiveReadResponse(requete.adresseMemoire.toUInt16(), buffRx, lengthRx);
+        }
+        return false;
+    }
 
     if(header.type == FrisquetRadio::MessageType::INIT) {
         FrisquetRadio::RadioTrameInit requete;
@@ -495,6 +645,11 @@ bool Connect::onReceive(byte* donnees, size_t length) {
             getZone(zoneId).saveConfig();
             info("[CONNECT] Mise à jour zone %d (id %d), publication MQTT locale.", getZone(zoneId).getNumeroZone(), zoneId );
             getZone(zoneId).publishMqtt();
+
+            if (passive) {
+                publishMqtt();
+                return true;
+            }
 
             uint8_t retry = 0;
             int16_t err;
@@ -606,6 +761,10 @@ void Connect::begin() {
     mqtt().registerEntity(*device, _mqttEntities.modeECS, true);
     mqtt().onCommand(_mqttEntities.modeECS, [&](const String& payload){
         info("[CONNECT] Changement du mode  ECS : %s.", payload.c_str());
+        if (getConfig().useConnectPassive()) {
+            info("[CONNECT] Mode passif actif, envoi du mode ECS ignoré.");
+            return;
+        }
         setModeECS(payload);
         if(envoyerModeECS()) {
             mqtt().publishState(_mqttEntities.modeECS, getNomModeECS());
@@ -624,6 +783,10 @@ void Connect::begin() {
 
 void Connect::loop() {
     uint32_t now = millis();
+
+    if (getConfig().useConnectPassive()) {
+        return;
+    }
 
     if(estAssocie()) {
         if (now - _lastRecuperationTemperatures >= 300000 || _lastRecuperationTemperatures == 0) { // 5 minutes

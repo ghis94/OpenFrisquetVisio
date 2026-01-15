@@ -14,6 +14,7 @@ class Config {
         Preferences _preferences;
 
         bool _useConnect = false;
+        bool _useConnectPassive = false;
         bool _useSondeExterieure = false;
         bool _useDS18B20 = false;
         bool _useSatelliteZ1 = false;
@@ -37,6 +38,8 @@ class Config {
 
         bool useConnect() { return _useConnect; }
         bool useConnect(bool useConnect) { _useConnect = useConnect; return _useConnect; }
+        bool useConnectPassive() { return _useConnectPassive; }
+        bool useConnectPassive(bool useConnectPassive) { _useConnectPassive = useConnectPassive; return _useConnectPassive; }
         bool useSondeExterieure() { return _useSondeExterieure; }
         bool useSondeExterieure(bool useSondeExterieure) { _useSondeExterieure = useSondeExterieure; return _useSondeExterieure; }
         bool useDS18B20() { return _useDS18B20; }

@@ -55,6 +55,7 @@ void Config::load() {
   }
 
   _useConnect = _preferences.getBool("useConnect", false);
+  _useConnectPassive = _preferences.getBool("useConnectPassive", false);
   _useSondeExterieure = _preferences.getBool("useSondeExt", false);
   _useDS18B20 = _preferences.getBool("useDS18B20", false);
   _useSatelliteZ1 = _preferences.getBool("useSatelliteZ1", false);
@@ -116,6 +117,7 @@ void Config::save() {
   // Frisquet
   _preferences.putBytes("networkID", &_networkId, sizeof(NetworkID));
   _preferences.putBool("useConnect", _useConnect);
+  _preferences.putBool("useConnectPassive", _useConnectPassive);
   _preferences.putBool("useSondeExt", _useSondeExterieure);
   _preferences.putBool("useDS18B20", _useDS18B20);
   _preferences.putBool("useSatelliteZ1", _useSatelliteZ1);
