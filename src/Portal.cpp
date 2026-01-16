@@ -2026,6 +2026,8 @@ String Portal::logsHtml() {
 const $ = s => document.querySelector(s);
 let raw = "";
 let timer = null;
+let pollInFlight = false;
+let pollStopped = false;
 
 const elLog     = $("#log");
 const selRef    = $("#refresh");
@@ -2067,6 +2069,8 @@ function render(){
 }
 
 async function reload(){
+  if(pollInFlight || pollStopped) return;
+  pollInFlight = true;
   try{
     // On envoie la limite et éventuellement le niveau au backend
     const limitParam = selLimit.value === "0" ? "500" : selLimit.value;
@@ -2082,14 +2086,38 @@ async function reload(){
     render();
   }catch(e){
     elLog.textContent = "Erreur chargement logs: " + e;
+  } finally {
+    pollInFlight = false;
+  }
+}
+
+function stopPolling(){
+  pollStopped = true;
+  if(timer){ clearTimeout(timer); timer = null; }
+}
+
+function startPolling(){
+  pollStopped = false;
+  scheduleNextPoll();
+}
+
+function scheduleNextPoll(){
+  if(pollStopped) return;
+  const v = parseInt(selRef.value||"0",10);
+  if(v>0){
+    if(timer){ clearTimeout(timer); timer = null; }
+    timer = setTimeout(async ()=>{
+      await reload();
+      scheduleNextPoll();
+    }, v);
   }
 }
 
 function updateRefreshTimer(){
-  if(timer){ clearInterval(timer); timer = null; }
+  stopPolling();
   const v = parseInt(selRef.value||"0",10);
   if(v>0){
-    timer = setInterval(reload, v);
+    startPolling();
   }
 }
 
@@ -2111,8 +2139,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   selRef.addEventListener("change", updateRefreshTimer);
 
-  reload();
-  updateRefreshTimer();
+  reload().then(updateRefreshTimer);
 });
 </script>
 
@@ -2259,6 +2286,8 @@ const btnRead = $("#btnRead");
 const btnScan = $("#btnScan");
 const btnStop = $("#btnStop");
 let timer = null;
+let pollInFlight = false;
+let pollStopped = false;
 
 function toHex(n, w){
   return n.toString(16).toUpperCase().padStart(w, "0");
@@ -2286,6 +2315,8 @@ function renderDump(startHex, words){
 }
 
 async function readOnce(){
+  if(pollInFlight || pollStopped) return;
+  pollInFlight = true;
   const start = (inpStart.value || "0000").trim();
   const len = parseInt(inpLen.value || "16", 10);
   const qs = "?start=" + encodeURIComponent(start) +
@@ -2310,6 +2341,8 @@ async function readOnce(){
     }
   }catch(e){
     showMsg("Erreur réseau: " + e, false);
+  } finally {
+    pollInFlight = false;
   }
 }
 
@@ -2347,11 +2380,33 @@ async function scanOnce(){
   }
 }
 
-function updateTimer(){
-  if(timer){ clearInterval(timer); timer = null; }
+function stopPolling(){
+  pollStopped = true;
+  if(timer){ clearTimeout(timer); timer = null; }
+}
+
+function startPolling(){
+  pollStopped = false;
+  scheduleNextPoll();
+}
+
+function scheduleNextPoll(){
+  if(pollStopped) return;
   const v = parseInt(selRef.value || "0", 10);
   if(v > 0){
-    timer = setInterval(readOnce, v);
+    if(timer){ clearTimeout(timer); timer = null; }
+    timer = setTimeout(async ()=>{
+      await readOnce();
+      scheduleNextPoll();
+    }, v);
+  }
+}
+
+function updateTimer(){
+  stopPolling();
+  const v = parseInt(selRef.value || "0", 10);
+  if(v > 0){
+    startPolling();
   }
 }
 
@@ -2525,6 +2580,9 @@ const inpPayload = $("#payload");
 const btnSend    = $("#btnSend");
 const msgBox     = $("#msg");
 
+let pollInFlight = false;
+let pollStopped = false;
+
 function showMsg(text, ok){
   if(!msgBox) return;
   msgBox.textContent = text;
@@ -2557,6 +2615,8 @@ function render(){
 }
 
 async function reload(){
+  if(pollInFlight || pollStopped) return;
+  pollInFlight = true;
   try{
     const limitParam = selLimit.value === "0" ? "500" : selLimit.value;
     const qs =
@@ -2569,14 +2629,38 @@ async function reload(){
     render();
   }catch(e){
     elLog.textContent = "Erreur chargement logs: " + e;
+  } finally {
+    pollInFlight = false;
+  }
+}
+
+function stopPolling(){
+  pollStopped = true;
+  if(timer){ clearTimeout(timer); timer = null; }
+}
+
+function startPolling(){
+  pollStopped = false;
+  scheduleNextPoll();
+}
+
+function scheduleNextPoll(){
+  if(pollStopped) return;
+  const v = parseInt(selRef.value||"0",10);
+  if(v>0){
+    if(timer){ clearTimeout(timer); timer = null; }
+    timer = setTimeout(async ()=>{
+      await reload();
+      scheduleNextPoll();
+    }, v);
   }
 }
 
 function updateRefreshTimer(){
-  if(timer){ clearInterval(timer); timer = null; }
+  stopPolling();
   const v = parseInt(selRef.value||"0",10);
   if(v>0){
-    timer = setInterval(reload, v);
+    startPolling();
   }
 }
 
@@ -2644,8 +2728,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     btnSend.addEventListener("click", sendPayload);
   }
 
-  reload();
-  updateRefreshTimer();
+  reload().then(updateRefreshTimer);
 });
 </script>
 
