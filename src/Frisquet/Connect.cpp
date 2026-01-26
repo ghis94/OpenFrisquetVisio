@@ -438,10 +438,12 @@ bool Connect::envoyerModeECS() {
 bool Connect::handlePassiveReadResponse(uint16_t adresseMemoire, const byte* buff, size_t length) {
     const uint16_t addrInformations = 0x79E0;
     const uint16_t addrConsommation = 0x7A18;
+    const uint16_t addrDate = 0xA02B;
     const uint16_t addrModeEcs = 0xA0FC;
 
     auto addrIsInformations = adresseMemoire == addrInformations || adresseMemoire == (addrInformations + 0x00C8);
     auto addrIsConsommation = adresseMemoire == addrConsommation || adresseMemoire == (addrConsommation + 0x00C8);
+    auto addrIsDate = adresseMemoire == addrDate;
 
     if (addrIsInformations) {
         debug("[CONNECT] Réception des informations passives du Connect.");
@@ -529,6 +531,26 @@ bool Connect::handlePassiveReadResponse(uint16_t adresseMemoire, const byte* buf
         setConsommationECS(resp.consommationECS.toInt16());
         _lastRecuperationConsommation = millis();
         publishMqtt();
+        return true;
+    }
+
+    if(addrIsDate) {
+        debug("[CONNECT] Réception de la date passive du Connect.");
+        struct {
+            FrisquetRadio::RadioTrameHeader header;
+            uint8_t longueurDonnees;
+            byte date[6] = {0};
+            byte i1 = 0;
+            byte i2 = 0;
+        } resp;
+
+        if (length < sizeof(resp)) {
+            return false;
+        }
+        memcpy(&resp, buff, sizeof(resp));
+
+        Date date = resp.date;
+        setDate(date);
         return true;
     }
 
