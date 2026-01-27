@@ -717,7 +717,7 @@ void Connect::begin() {
   info("[CONNECT][MQTT] Initialisation des entités.");
 
     // Device commun
-  MqttDevice* device = mqtt().getDevice("heltecFrisquet");
+  MqttDevice* device = mqtt().getDevice("openFrisquetVisio");
   
   // Entités
     
@@ -900,36 +900,36 @@ void Connect::envoiZones() {
 
 void Connect::publishMqtt() {
     if( !isnan(getTemperatureECS())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureECS"), getTemperatureECS());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("temperatureECS"), getTemperatureECS());
     }
     if( !isnan(getTemperatureCDC())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureCDC"), getTemperatureCDC());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("temperatureCDC"), getTemperatureCDC());
     }
     if( !isnan(getTemperatureExterieure())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureExterieure"), getTemperatureExterieure());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("temperatureExterieure"), getTemperatureExterieure());
     }
 
     if( getConsommationChauffage() >= 0) {
         static float lastConsommationChauffage = -1;
         if(lastConsommationChauffage != getConsommationChauffage()) {
             lastConsommationChauffage = getConsommationChauffage();
-            mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("consommationChauffage"), getConsommationChauffage());
+            mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("consommationChauffage"), getConsommationChauffage());
         }
     }
     if( getConsommationECS() >= 0 && getConsommationECS()) {
         static float lastConsommationECS = -1;
         if(lastConsommationECS != getConsommationECS()) {
             lastConsommationECS = getConsommationECS();
-            mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("consommationECS"), getConsommationECS());
+            mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("consommationECS"), getConsommationECS());
         }
     }
 
     if(getModeECS() != MODE_ECS::INCONNU) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("modeECS"), getNomModeECS().c_str());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("modeECS"), getNomModeECS().c_str());
     }
     
     if( !isnan(getPression())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("pression"), getPression());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("pression"), getPression());
     }
 }
 

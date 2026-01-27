@@ -21,7 +21,7 @@ private:
 
   // AP fallback
   bool _apRunning = false;
-  String _apSsid = "HeltecFrisquet-Setup";
+  String _apSsid = "OpenFrisquetVisio-Setup";
   String _apPass = "frisquetconfig";
 
   // Handlers

@@ -6,3 +6,4 @@
 .DS_Store
 platformio.ini
 docs/
+tools/

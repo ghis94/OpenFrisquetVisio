@@ -1,0 +1,3 @@
+#pragma once
+
+#define OPENFRISQUETVISIO_VERSION "26.01.27.1058"

@@ -93,7 +93,7 @@ Avant le flash :
 
 ### 3️⃣ Configuration via le portail web
 
-1. Se connecter au WiFi créé : `HeltecFrisquet-Setup`, mot de passe `frisquetconfig`
+1. Se connecter au WiFi créé : `OpenFrisquetVisio-Setup`, mot de passe `frisquetconfig`
 2. Ouvrir un navigateur sur `192.168.4.1`
 3. Renseigner :
    - Vos **informations WiFi**
@@ -178,4 +178,4 @@ Mais bon, si ça marche, vous pouvez toujours m’offrir un café ☕ 😉
 **Année :** 2025  
 **Plateforme :** ESP32 (Heltec WiFi LoRa 32, SX1262)  
 **Compatibilité :** Home Assistant, MQTT, Frisquet Chaudière série Eco Radio Visio  
-**Version :** 26.01.27.1023
+**Version :** 26.01.27.1058

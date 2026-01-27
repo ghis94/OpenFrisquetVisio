@@ -7,7 +7,7 @@ class NetworkManager {
 public:
   struct Options {
     // Identification & accès
-    String hostname = "heltec-frisquet";
+    String hostname = "open-frisquet-visio";
     String ssid;
     String password;
 

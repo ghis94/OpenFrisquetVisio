@@ -1,4 +1,5 @@
 #include "FrisquetManager.h"
+#include "Version.h"
 #include "Buffer.h"
 
 FrisquetManager::FrisquetManager(FrisquetRadio &radio, Config &cfg, MqttManager &mqtt)
@@ -73,7 +74,7 @@ void FrisquetManager::begin()
         _satelliteZ3.begin(_cfg.useSatelliteVirtualZ3());
     }
 
-    _mqtt.publishAvailability(*_mqtt.getDevice("heltecFrisquet"), true);
+    _mqtt.publishAvailability(*_mqtt.getDevice("openFrisquetVisio"), true);
 
     _radio.onReceive([]()
                      {
@@ -140,12 +141,12 @@ void FrisquetManager::initMqtt()
     info("[MQTT] Initialisation du device MQTT.");
 
     // Device commun
-    _device.deviceId = "heltecFrisquet";
-    _device.name = "Heltec Frisquet";
-    _device.model = "Heltec Frisquet ";
+    _device.deviceId = "openFrisquetVisio";
+    _device.name = "OpenFrisquetVisio";
+    _device.model = "OpenFrisquetVisio";
     _device.manufacturer = "FreedomNX Lab";
     _device.baseTopic = _cfg.getMQTTOptions().baseTopic;
-    _device.swVersion = "2.0.0";
+    _device.swVersion = OPENFRISQUETVISIO_VERSION;
     _mqtt.registerDevice(_device);
 }
 

@@ -1298,7 +1298,7 @@ String Portal::html() {
           <div class='grid-3'>
             <div class='row'>
               <label>Client ID</label>
-              <input id='mqttClientId' type='text' placeholder='Heltec-Frisquet'>
+              <input id='mqttClientId' type='text' placeholder='OpenFrisquetVisio'>
             </div>
             <div class='row'>
               <label>Base topic</label>
@@ -1540,7 +1540,7 @@ String Portal::html() {
   </div>
 
   <div class='footer'>
-    Portail de configuration – Frisquet Heltec
+    Portail de configuration – OpenFrisquetVisio
   </div>
 </div>
 

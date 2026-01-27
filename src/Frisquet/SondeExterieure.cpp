@@ -95,7 +95,7 @@ void SondeExterieure::begin() {
   info("[SONDE EXTERIEURE][MQTT] Initialisation des entités.");
 
     // Device commun
-    MqttDevice* device = mqtt().getDevice("heltecFrisquet");
+    MqttDevice* device = mqtt().getDevice("openFrisquetVisio");
 
     // Entités
 
