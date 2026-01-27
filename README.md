@@ -1,4 +1,4 @@
-# 🧠 Frisquet Connect (ESP32 SX1262)
+# 🧠 OpenFrisquetVisio
 
 Emulation complète du module **Frisquet Connect** sur base **Heltec ESP32 WiFi LoRa 32 (SX1262)**.  
 Ce projet permet à un ESP32 de dialoguer directement avec votre chaudière Frisquet,  
@@ -51,6 +51,7 @@ Deux modes possibles :
 - Visualisation des **logs**
 - Informations système et réseau
 - Envoi de trame radio personnalisée (debug)
+- Lecture de zones mémoire (debug)
 
 ### 🔁 Mise à jour OTA
 - Mise à jour du firmware directement via WiFi
@@ -177,4 +178,4 @@ Mais bon, si ça marche, vous pouvez toujours m’offrir un café ☕ 😉
 **Année :** 2025  
 **Plateforme :** ESP32 (Heltec WiFi LoRa 32, SX1262)  
 **Compatibilité :** Home Assistant, MQTT, Frisquet Chaudière série Eco Radio Visio  
-**Version :** 2.0.0c
+**Version :** 26.01.27.1023
