@@ -39,6 +39,8 @@ private:
   void handleStatus();
   void handleRadioLogsPage();
   void handleSendRadio();
+  void handleUpdate();           // POST /api/update (finish)
+  void handleUpdateUpload();     // POST /api/update (upload)
   void handlePairConnect();
   void handlePairSondeExt();
   void handlePairSatelliteZ1();
@@ -57,4 +59,6 @@ private:
 
   // AP
   void startAp();
+
+  String _lastUpdateError;
 };

@@ -1,6 +1,7 @@
 #include "Portal.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <Update.h>
 #include <stdarg.h>
 #include <cstring>
 #include <esp_system.h>
@@ -165,6 +166,7 @@ void Portal::begin(bool startApFallbackIfNoWifi) {
   _srv.on("/api/memory/scan", HTTP_GET, [this]{ handleMemoryScan(); });
   _srv.on("/memory", HTTP_GET, [this]{ handleMemoryPage(); });
   _srv.on("/api/radio/send", HTTP_POST, [this]{ handleSendRadio(); });
+  _srv.on("/api/update", HTTP_POST, [this]{ handleUpdate(); }, [this]{ handleUpdateUpload(); });
   _srv.on("/api/connect/pair", HTTP_POST, [this]{ handlePairConnect(); });
   _srv.on("/api/sonde-ext/pair", HTTP_POST, [this]{ handlePairSondeExt(); });
   _srv.on("/api/satellite/z1/pair", HTTP_POST, [this]{ handlePairSatelliteZ1(); });
@@ -188,6 +190,46 @@ void Portal::loop() {
 void Portal::handleClearLogs() {
   logs.clear();
   _srv.send(200, "text/plain; charset=utf-8", "OK");
+}
+
+void Portal::handleUpdate() {
+  if (_lastUpdateError.length() > 0 || Update.hasError()) {
+    String err = _lastUpdateError.length() > 0 ? _lastUpdateError : "Erreur pendant la mise à jour";
+    error("[PORTAIL] OTA HTTP: %s", err.c_str());
+    _srv.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"Mise à jour échouée\"}");
+    return;
+  }
+
+  _srv.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+  info("[PORTAIL] OTA HTTP: OK, redémarrage...");
+  scheduleReboot(1500);
+}
+
+void Portal::handleUpdateUpload() {
+  HTTPUpload& upload = _srv.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    _lastUpdateError = "";
+    info("[PORTAIL] OTA HTTP: début upload (%s, %u bytes)", upload.filename.c_str(), upload.totalSize);
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+      _lastUpdateError = "Update.begin a échoué";
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      _lastUpdateError = "Update.write a échoué";
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (!Update.end(true)) {
+      _lastUpdateError = "Update.end a échoué";
+      Update.printError(Serial);
+    } else {
+      info("[PORTAIL] OTA HTTP: upload terminé (%u bytes)", upload.totalSize);
+    }
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    _lastUpdateError = "Upload interrompu";
+    Update.abort();
+  }
 }
 
 // -------------------- API --------------------
@@ -1168,7 +1210,7 @@ String Portal::html() {
 <!DOCTYPE html><html lang='fr'><head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Frisquet – Configuration</title>
+<title>OpenFrisquetVisio – Configuration</title>
 <style>
   :root{
     --bg:#0f1115;--card:#171a21;--muted:#8a8f98;--txt:#e7e9ee;
@@ -1227,7 +1269,7 @@ String Portal::html() {
 
   <div class='split'>
     <div class='card'>
-      <h2>Frisquet – Configuration</h2>
+      <h2>OpenFrisquetVisio – Configuration</h2>
       <p class='hint'>
         Renseignez le Wi-Fi, le broker MQTT et les options Frisquet puis cliquez sur
         <strong>Enregistrer</strong>.
@@ -1537,6 +1579,24 @@ String Portal::html() {
       </div>
     </div>
 
+    <div class='card'>
+      <h2>Mise à jour firmware</h2>
+      <p class='hint'>
+        Sélectionnez un fichier <code>.bin</code> compilé pour ce Heltec V3, puis lancez l’upload.
+        L’appareil redémarrera automatiquement.
+      </p>
+      <form id='fwForm'>
+        <div class='row'>
+          <label>Fichier firmware</label>
+          <input id='fwFile' type='file' accept='.bin'>
+        </div>
+        <div class='actions' style='margin-top:10px'>
+          <button class='btn' type='submit' id='fwBtn'>Uploader</button>
+        </div>
+        <div id='fwMsg' class='msg'></div>
+      </form>
+    </div>
+
   </div>
 
   <div class='footer'>
@@ -1547,6 +1607,7 @@ String Portal::html() {
 <script>
 const $ = sel => document.querySelector(sel);
 const msg = (t) => { const m=$("#msg"); if(!m) return; m.textContent=t; m.classList.add("show"); };
+const fwMsg = (t) => { const m=$("#fwMsg"); if(!m) return; m.textContent=t; m.classList.add("show"); };
 
 const FIELDS = [
   "wifiHostname","wifiSsid","wifiPass","wifiStatic","wifiIp","wifiGw","wifiMask","wifiDns1","wifiDns2",
@@ -1825,8 +1886,45 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
   });
 
-  const form = $("#form");
+const form = $("#form");
   if (form) form.addEventListener("submit", saveConfig);
+
+const fwForm = $("#fwForm");
+if (fwForm) {
+  fwForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fileInput = $("#fwFile");
+    const btn = $("#fwBtn");
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      fwMsg("Sélectionnez un fichier .bin.");
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const fd = new FormData();
+    fd.append("update", file, file.name);
+
+    if (btn) btn.disabled = true;
+    fwMsg("Upload en cours...");
+    try {
+      const res = await fetch("/api/update", { method: "POST", body: fd });
+      let ok = res.ok;
+      let text = "Mise à jour terminée. Redémarrage…";
+      try {
+        const json = await res.json();
+        ok = !!json.ok;
+        if (!ok && json.err) text = json.err;
+      } catch (_) {
+        if (!ok) text = "Mise à jour échouée.";
+      }
+      fwMsg(text);
+    } catch (err) {
+      fwMsg("Erreur réseau pendant l’upload.");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
 
   const btnReboot = $("#btnReboot");
   if (btnReboot) {
@@ -1897,7 +1995,7 @@ String Portal::logsHtml() {
 <!DOCTYPE html><html lang='fr'><head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Frisquet – Logs</title>
+<title>OpenFrisquetVisio – Logs</title>
 <style>
   :root{
     --bg:#0f1115;--card:#171a21;--muted:#8a8f98;--txt:#e7e9ee;
@@ -1967,7 +2065,7 @@ String Portal::logsHtml() {
 
   <div class='topnav'>
     <a href='/' class='btn'>&larr;&nbsp;Retour</a>
-    <span class='badge'>Frisquet – Logs</span>
+    <span class='badge'>OpenFrisquetVisio – Logs</span>
   </div>
 
   <div class='card'>
@@ -2153,7 +2251,7 @@ String Portal::memoryHtml() {
 <!DOCTYPE html><html lang='fr'><head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Frisquet – Mémoire chaudière</title>
+<title>OpenFrisquetVisio – Mémoire chaudière</title>
 <style>
   :root{
     --bg:#0f1115;--card:#171a21;--muted:#8a8f98;--txt:#e7e9ee;
@@ -2219,7 +2317,7 @@ String Portal::memoryHtml() {
 
   <div class='topnav'>
     <a href='/' class='btn'>&larr;&nbsp;Retour</a>
-    <span class='badge'>Frisquet – Mémoire chaudière</span>
+    <span class='badge'>OpenFrisquetVisio – Mémoire chaudière</span>
   </div>
 
   <div class='card'>
@@ -2429,7 +2527,7 @@ String Portal::logsRadioHtml() {
 <!DOCTYPE html><html lang='fr'><head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Frisquet – Trames radio</title>
+<title>OpenFrisquetVisio – Trames radio</title>
 <style>
   :root{
     --bg:#0f1115;--card:#171a21;--muted:#8a8f98;--txt:#e7e9ee;
@@ -2500,7 +2598,7 @@ String Portal::logsRadioHtml() {
 
   <div class='topnav'>
     <a href='/' class='btn'>&larr;&nbsp;Retour</a>
-    <span class='badge'>Frisquet – Trames radio</span>
+    <span class='badge'>OpenFrisquetVisio – Trames radio</span>
     <a href='/logs' class='btn'>Tous les logs</a>
   </div>
 

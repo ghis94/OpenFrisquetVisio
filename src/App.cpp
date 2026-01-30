@@ -20,6 +20,13 @@ void App::begin() {
 void App::loop() {
   // boucle des services
   _networkManager.loop();
+  if (_apFallbackArmed && !WiFi.isConnected()) {
+    if ((int32_t)(millis() - _apFallbackAtMs) >= 0) {
+      _apFallbackArmed = false;
+      WiFi.mode(WIFI_AP_STA);
+      info("[WIFI] AP fallback activé après délai.");
+    }
+  }
   _ota.loop();
   _portal->loop();
   _mqtt.loop();
@@ -34,11 +41,14 @@ void App::initConfig() {
 void App::initNetwork() {
     _networkManager.onConnected([&](){
         info("[WIFI] CONNECTED  IP=%s  RSSI=%ddBm\n", _networkManager.ipStr().c_str(), _networkManager.rssi());
-        //WiFi.mode(WIFI_STA);
+        _apFallbackArmed = false;
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_STA);
     });
     _networkManager.onDisconnected([&](const String& reason){
         info("[WIFI] DISCONNECTED (%s)\n", reason.c_str());
-        //WiFi.mode(WIFI_AP_STA);
+        _apFallbackArmed = true;
+        _apFallbackAtMs = millis() + 60000;
     });
 
     _networkManager.begin(_cfg.getWiFiOptions());
