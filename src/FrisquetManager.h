@@ -9,6 +9,7 @@
 #include "DS18B20.h"
 #include "Frisquet/Satellite.h"
 #include "Frisquet/Zone.h"
+#include "Frisquet/Chaudiere.h"
 
 class FrisquetManager {
 public:
@@ -24,6 +25,7 @@ public:
   MqttManager& mqtt() { return _mqtt; }
   Config& config() { return _cfg; }
   Connect& connect() { return _connect; }
+  Chaudiere& chaudiere() { return _chaudiere; }
   SondeExterieure& sondeExterieure() { return _sondeExterieure; }
   Satellite& satelliteZ1() { return _satelliteZ1; }
   Satellite& satelliteZ2() { return _satelliteZ2; }
@@ -40,6 +42,7 @@ private:
   Zone _zone2;
   Zone _zone3;
 
+  Chaudiere _chaudiere;
   SondeExterieure _sondeExterieure;
   Connect _connect;
 
