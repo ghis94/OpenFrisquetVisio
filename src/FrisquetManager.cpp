@@ -1,10 +1,12 @@
 #include "FrisquetManager.h"
+#include "Version.h"
 #include "Buffer.h"
 
 FrisquetManager::FrisquetManager(FrisquetRadio &radio, Config &cfg, MqttManager &mqtt)
     :   _radio(radio), _cfg(cfg), _mqtt(mqtt),
         _zone1(ID_ZONE_1, mqtt), _zone2(ID_ZONE_2, mqtt), _zone3(ID_ZONE_3, mqtt),
-        _sondeExterieure(radio, cfg, mqtt), _connect(radio, cfg, mqtt, _zone1, _zone2, _zone3),
+        _chaudiere(mqtt, cfg),
+        _sondeExterieure(radio, cfg, mqtt), _connect(radio, cfg, mqtt, _zone1, _zone2, _zone3, _chaudiere),
         _satelliteZ1(radio, cfg, mqtt, _zone1), _satelliteZ2(radio, cfg, mqtt, _zone2), _satelliteZ3(radio, cfg, mqtt, _zone3) {}
 
 void FrisquetManager::begin()
@@ -49,6 +51,9 @@ void FrisquetManager::begin()
     }
 
     if (_cfg.useConnect()) {
+        _chaudiere.begin([this](const String& payload) {
+            _connect.handleModeEcsCommand(payload);
+        });
         _connect.begin();
         if (!_cfg.useConnectPassive()) {
             _connect.recupererDate();
@@ -73,7 +78,7 @@ void FrisquetManager::begin()
         _satelliteZ3.begin(_cfg.useSatelliteVirtualZ3());
     }
 
-    _mqtt.publishAvailability(*_mqtt.getDevice("heltecFrisquet"), true);
+    _mqtt.publishAvailability(*_mqtt.getDevice("openFrisquetVisio"), true);
 
     _radio.onReceive([]()
                      {
@@ -140,12 +145,12 @@ void FrisquetManager::initMqtt()
     info("[MQTT] Initialisation du device MQTT.");
 
     // Device commun
-    _device.deviceId = "heltecFrisquet";
-    _device.name = "Heltec Frisquet";
-    _device.model = "Heltec Frisquet ";
+    _device.deviceId = "openFrisquetVisio";
+    _device.name = "OpenFrisquetVisio";
+    _device.model = "OpenFrisquetVisio";
     _device.manufacturer = "FreedomNX Lab";
     _device.baseTopic = _cfg.getMQTTOptions().baseTopic;
-    _device.swVersion = "2.0.0";
+    _device.swVersion = OPENFRISQUETVISIO_VERSION;
     _mqtt.registerDevice(_device);
 }
 

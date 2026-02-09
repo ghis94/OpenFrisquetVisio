@@ -36,6 +36,10 @@ private:
   // Radio
   FrisquetRadio _radio;
 
+  // AP fallback after disconnect
+  bool _apFallbackArmed = false;
+  uint32_t _apFallbackAtMs = 0;
+
   // Étapes
   void initConfig();
   void initNetwork();

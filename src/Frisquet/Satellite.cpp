@@ -22,7 +22,7 @@ void Satellite::begin(bool modeVirtuel) {
     info("[SATELLITE Z%d] Initialisation du satellite [MODE %s].", _zone.getNumeroZone(), _modeVirtuel ? "VIRTUEL" : "PHYSIQUE");
 
     // Device commun
-    MqttDevice* device = mqtt().getDevice("heltecFrisquet");
+    MqttDevice* device = mqtt().getDevice("openFrisquetVisio");
 
     // SWITCH: Activation Écrasement consigne
     _mqttEntities.ecrasementConsigne.id = "ecrasementConsigneZ" + String(getNumeroZone());
@@ -92,9 +92,9 @@ void Satellite::loop() {
 }
 
 void Satellite::publishMqtt() {
-    mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("ecrasementConsigneZ" + String(getNumeroZone())), getEcrasement() ? "ON" : "OFF");
+    mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("ecrasementConsigneZ" + String(getNumeroZone())), getEcrasement() ? "ON" : "OFF");
     if(this->getId() == ID_ZONE_1) { // Seulement sur Z1 (leader)
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("etatChaudiere"), _etatChaudiere.getLibelle().c_str());
+        mqtt().publishState(*mqtt().getDevice("openFrisquetVisio")->getEntity("etatChaudiere"), _etatChaudiere.getLibelle().c_str());
     }
 }
 

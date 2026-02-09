@@ -247,36 +247,36 @@ bool Connect::recupererConsommation() {
 }
 
 void Connect::setTemperatureExterieure(float temperature) {
-    _temperatureExterieure = temperature;
+    _chaudiere.setTemperatureExterieure(temperature);
 }
 void Connect::setTemperatureECS(float temperature) {
-    _temperatureECS = temperature;
+    _chaudiere.setTemperatureECS(temperature);
 }
 void Connect::setTemperatureCDC(float temperature) {
-    _temperatureCDC = temperature;
+    _chaudiere.setTemperatureCDC(temperature);
 }
 
 float Connect::getTemperatureExterieure() {
-    return _temperatureExterieure;
+    return _chaudiere.getTemperatureExterieure();
 }
 float Connect::getTemperatureECS() {
-    return _temperatureECS;
+    return _chaudiere.getTemperatureECS();
 }
 float Connect::getTemperatureCDC() {
-    return _temperatureCDC;
+    return _chaudiere.getTemperatureCDC();
 }
 
 void Connect::setConsommationECS(int16_t consommation) {
-    _consommationGazECS = consommation;
+    _chaudiere.setConsommationECS(consommation);
 }
 void Connect::setConsommationChauffage(int16_t consommation) {
-    _consommationGazChauffage = consommation;
+    _chaudiere.setConsommationChauffage(consommation);
 }
 int16_t Connect::getConsommationChauffage() {
-    return _consommationGazChauffage;
+    return _chaudiere.getConsommationChauffage();
 }
 int16_t Connect::getConsommationECS() {
-    return _consommationGazECS;
+    return _chaudiere.getConsommationECS();
 }
 
 bool Connect::recupererModeECS() {
@@ -336,54 +336,31 @@ bool Connect::recupererModeECS() {
 }
 
 Connect::MODE_ECS Connect::getModeECS() {
-    return _modeECS;
+    return _chaudiere.getModeECS();
 }
 String Connect::getNomModeECS() {
-    switch(getModeECS()) {
-        case MODE_ECS::STOP:
-            return "Stop";
-            break;
-        case MODE_ECS::MAX:
-            return "Max";
-            break;
-        case MODE_ECS::ECO:
-            return "Eco";
-            break;
-        case MODE_ECS::ECO_HORAIRES:
-            return "Eco Horaires";
-            break;
-        case MODE_ECS::ECOPLUS:
-            return "Eco+";
-            break;
-        case MODE_ECS::ECOPLUS_HORAIRES:
-            return "Eco+ Horaires";
-            break;
-    }
-
-    return "Inconnu";
+    return _chaudiere.getNomModeECS();
 }
 bool Connect::setModeECS(MODE_ECS modeECS) {
-    _modeECS = modeECS;
-    return true;
+    return _chaudiere.setModeECS(modeECS);
 }
 bool Connect::setModeECS(const String& modeECS) {
-    if (modeECS.equalsIgnoreCase("Max")) {
-        this->setModeECS(MODE_ECS::MAX);
-    } else if (modeECS.equalsIgnoreCase("Eco")) {
-        this->setModeECS(MODE_ECS::ECO);
-    } else if (modeECS.equalsIgnoreCase("Eco+")) {
-        this->setModeECS(MODE_ECS::ECOPLUS);
-    } else if (modeECS.equalsIgnoreCase("Eco Horaires")) {
-        this->setModeECS(MODE_ECS::ECO_HORAIRES);
-    } else if (modeECS.equalsIgnoreCase("Eco+ Horaires")) {
-        this->setModeECS(MODE_ECS::ECOPLUS_HORAIRES);
-    } else if (modeECS.equalsIgnoreCase("Stop")) {
-        this->setModeECS(MODE_ECS::STOP);
-    } else {
-        return false;
-    }
+    return _chaudiere.setModeECS(modeECS);
+}
 
-    return true;
+void Connect::handleModeEcsCommand(const String& payload) {
+    info("[CONNECT] Changement du mode  ECS : %s.", payload.c_str());
+    if (getConfig().useConnectPassive()) {
+        info("[CONNECT] Mode passif actif, envoi du mode ECS ignoré.");
+        return;
+    }
+    if (!setModeECS(payload)) {
+        error("[CONNECT] Mode ECS invalide : %s", payload.c_str());
+        return;
+    }
+    if (envoyerModeECS()) {
+        _chaudiere.publishModeEcs();
+    }
 }
 
 bool Connect::envoyerModeECS() {
@@ -712,99 +689,6 @@ bool Connect::onReceive(byte* donnees, size_t length) {
 void Connect::begin() {
 
     loadConfig();
-
-    // Initialisation MQTT
-  info("[CONNECT][MQTT] Initialisation des entités.");
-
-    // Device commun
-  MqttDevice* device = mqtt().getDevice("heltecFrisquet");
-  
-  // Entités
-    
-  // SENSOR: Température ECS
-  _mqttEntities.tempECS.id = "temperatureECS";
-  _mqttEntities.tempECS.name = "Température ECS";
-  _mqttEntities.tempECS.component = "sensor";
-  _mqttEntities.tempECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureECS"}), 0, true);
-  _mqttEntities.tempECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureECS", "set"}), 0, true);
-  _mqttEntities.tempECS.set("device_class", "temperature");
-  _mqttEntities.tempECS.set("state_class", "measurement");
-  _mqttEntities.tempECS.set("unit_of_measurement", "°C");
-  mqtt().registerEntity(*device, _mqttEntities.tempECS, true);
-
-  // SENSOR: Température CDC
-  _mqttEntities.tempCDC.id = "temperatureCDC";
-  _mqttEntities.tempCDC.name = "Température CDC";
-  _mqttEntities.tempCDC.component = "sensor";
-  _mqttEntities.tempCDC.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureCDC"}), 0, true);
-  _mqttEntities.tempCDC.set("device_class", "temperature");
-  _mqttEntities.tempCDC.set("state_class", "measurement");
-  _mqttEntities.tempCDC.set("unit_of_measurement", "°C");
-  mqtt().registerEntity(*device, _mqttEntities.tempCDC, true);
-
-  // SENSOR: Température extérieure
-  _mqttEntities.tempExterieure.id = "temperatureExterieure";
-  _mqttEntities.tempExterieure.name = "Température extérieure";
-  _mqttEntities.tempExterieure.component = "sensor";
-  if(getConfig().useSondeExterieure() && !getConfig().useDS18B20()) {
-    _mqttEntities.tempExterieure.component = "number";
-  }
-  _mqttEntities.tempExterieure.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "sondeExterieure", "temperatureExterieure"}), 0, true);
-  _mqttEntities.tempExterieure.set("device_class", "temperature");
-  _mqttEntities.tempExterieure.set("state_class", "measurement");
-  _mqttEntities.tempExterieure.set("unit_of_measurement", "°C");
-  mqtt().registerEntity(*device, _mqttEntities.tempExterieure, true);
-
-  // SENSOR: Consommation chauffage
-  _mqttEntities.consommationChauffage.id = "consommationChauffage";
-  _mqttEntities.consommationChauffage.name = "Consommation chauffage";
-  _mqttEntities.consommationChauffage.component = "sensor";
-  _mqttEntities.consommationChauffage.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "consommationChauffage"}), 0, true);
-  _mqttEntities.consommationChauffage.set("device_class", "energy");
-  _mqttEntities.consommationChauffage.set("state_class", "total_increasing");
-  _mqttEntities.consommationChauffage.set("unit_of_measurement", "kWh");
-  mqtt().registerEntity(*device, _mqttEntities.consommationChauffage, true);
-
-  // SENSOR: Consommation ECS
-  _mqttEntities.consommationECS.id = "consommationECS";
-  _mqttEntities.consommationECS.name = "Consommation ECS";
-  _mqttEntities.consommationECS.component = "sensor";
-  _mqttEntities.consommationECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "consommationECS"}), 0, true);
-  _mqttEntities.consommationECS.set("device_class", "energy");
-  _mqttEntities.consommationECS.set("state_class", "total_increasing");
-  _mqttEntities.consommationECS.set("unit_of_measurement", "kWh");
-  mqtt().registerEntity(*device, _mqttEntities.consommationECS, true);
-
-   // SELECT: Mode ECS
-    _mqttEntities.modeECS.id = "modeECS";
-    _mqttEntities.modeECS.name = "Mode ECS";
-    _mqttEntities.modeECS.component = "select";
-    _mqttEntities.modeECS.stateTopic   = MqttTopic(MqttManager::compose({device->baseTopic,"connect", "modeECS"}), 0, true);
-    _mqttEntities.modeECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic,"connect", "modeECS","set"}), 0, true);
-    _mqttEntities.modeECS.set("icon", "mdi:tune-variant");
-    _mqttEntities.modeECS.set("entity_category", "config");
-    _mqttEntities.modeECS.setRaw("options", R"(["Max","Eco","Eco Horaires","Eco+", "Eco+ Horaires", "Stop"])");
-    mqtt().registerEntity(*device, _mqttEntities.modeECS, true);
-    mqtt().onCommand(_mqttEntities.modeECS, [&](const String& payload){
-        info("[CONNECT] Changement du mode  ECS : %s.", payload.c_str());
-        if (getConfig().useConnectPassive()) {
-            info("[CONNECT] Mode passif actif, envoi du mode ECS ignoré.");
-            return;
-        }
-        setModeECS(payload);
-        if(envoyerModeECS()) {
-            mqtt().publishState(_mqttEntities.modeECS, getNomModeECS());
-        }
-    });
-
-  // SENSOR: Pression
-  _mqttEntities.pression.id = "pression";
-  _mqttEntities.pression.name = "Pression";
-  _mqttEntities.pression.component = "sensor";
-  _mqttEntities.pression.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "pression"}), 0, true);
-  _mqttEntities.pression.set("device_class", "pressure");  
-  _mqttEntities.pression.set("unit_of_measurement", "bar");
-  mqtt().registerEntity(*device, _mqttEntities.pression, true);
 }
 
 void Connect::loop() {
@@ -899,44 +783,13 @@ void Connect::envoiZones() {
 }
 
 void Connect::publishMqtt() {
-    if( !isnan(getTemperatureECS())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureECS"), getTemperatureECS());
-    }
-    if( !isnan(getTemperatureCDC())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureCDC"), getTemperatureCDC());
-    }
-    if( !isnan(getTemperatureExterieure())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("temperatureExterieure"), getTemperatureExterieure());
-    }
-
-    if( getConsommationChauffage() >= 0) {
-        static float lastConsommationChauffage = -1;
-        if(lastConsommationChauffage != getConsommationChauffage()) {
-            lastConsommationChauffage = getConsommationChauffage();
-            mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("consommationChauffage"), getConsommationChauffage());
-        }
-    }
-    if( getConsommationECS() >= 0 && getConsommationECS()) {
-        static float lastConsommationECS = -1;
-        if(lastConsommationECS != getConsommationECS()) {
-            lastConsommationECS = getConsommationECS();
-            mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("consommationECS"), getConsommationECS());
-        }
-    }
-
-    if(getModeECS() != MODE_ECS::INCONNU) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("modeECS"), getNomModeECS().c_str());
-    }
-    
-    if( !isnan(getPression())) {
-        mqtt().publishState(*mqtt().getDevice("heltecFrisquet")->getEntity("pression"), getPression());
-    }
+    _chaudiere.publishMqtt();
 }
 
 void Connect::setPression(float pression) {
-    _pression = pression;
+    _chaudiere.setPression(pression);
 }
 
 float Connect::getPression() {
-    return _pression;
+    return _chaudiere.getPression();
 }
