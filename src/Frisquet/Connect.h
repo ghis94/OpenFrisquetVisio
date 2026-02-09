@@ -4,31 +4,24 @@
 #include <Preferences.h>
 #include "../Logs.h"
 #include "Zone.h"
+#include "Chaudiere.h"
 
 class Connect : public FrisquetDevice {
     
     public:
-        Connect(FrisquetRadio& radio, Config& cfg, MqttManager& mqtt, Zone& zone1, Zone& zone2, Zone& zone3) : 
+        Connect(FrisquetRadio& radio, Config& cfg, MqttManager& mqtt, Zone& zone1, Zone& zone2, Zone& zone3, Chaudiere& chaudiere) : 
             FrisquetDevice(radio, cfg, mqtt, ID_CONNECT),
             _zone1(zone1),
             _zone2(zone2),
-            _zone3(zone3) {}
+            _zone3(zone3),
+            _chaudiere(chaudiere) {}
         void loadConfig();
         void saveConfig();
 
         void begin();
         void loop();
 
-         enum MODE_ECS : uint8_t {
-            INCONNU = 0XFF,
-            STOP = 0x29,
-            MAX = 0x01,
-            ECO = 0x09,
-            ECO_HORAIRES = 0x11,
-            ECOPLUS = 0x19,
-            ECOPLUS_HORAIRES = 0x21
-        };
-
+        using MODE_ECS = Chaudiere::MODE_ECS;
 
         Zone& getZone1() { return _zone1; }
         Zone& getZone2() { return _zone2; }
@@ -41,6 +34,7 @@ class Connect : public FrisquetDevice {
                 case ID_ZONE_3: return _zone3;
             }
         }
+        Chaudiere& chaudiere() { return _chaudiere; }
 
         bool envoyerZone(Zone& zone);
         bool envoyerModeECS();
@@ -59,6 +53,7 @@ class Connect : public FrisquetDevice {
         bool setModeECS(MODE_ECS modeECS);
         bool setModeECS(const String& modeECS);
         String getNomModeECS();
+        void handleModeEcsCommand(const String& payload);
 
         bool onReceive(byte* donnees, size_t length);
 
@@ -67,17 +62,7 @@ class Connect : public FrisquetDevice {
         Zone& _zone1;
         Zone& _zone2;
         Zone& _zone3;
-
-        float _temperatureECS = NAN;
-        float _temperatureCDC = NAN;
-        float _temperatureExterieure = NAN;
-        
-        float _pression = NAN;
-        
-        int16_t _consommationGazECS = -1;
-        int16_t _consommationGazChauffage = -1;
-
-        MODE_ECS _modeECS = MODE_ECS::INCONNU;
+        Chaudiere& _chaudiere;
 
         void setTemperatureExterieure(float temperature);
         void setTemperatureECS(float temperature);
@@ -100,16 +85,4 @@ class Connect : public FrisquetDevice {
         uint32_t _lastRecuperationModeECS = 0;
         uint32_t _lastRecuperationConsommation = 0;
         uint32_t _lastEnvoiZone = 0;
-
-        // MQTT
-
-        struct {    
-            MqttEntity modeECS;
-            MqttEntity tempECS;
-            MqttEntity tempCDC;
-            MqttEntity tempExterieure;
-            MqttEntity consommationChauffage;
-            MqttEntity consommationECS;
-            MqttEntity pression;
-        } _mqttEntities;
 };
