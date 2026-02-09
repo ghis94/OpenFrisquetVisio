@@ -10,8 +10,8 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.tempECS.id = "temperatureECS";
     _mqttEntities.tempECS.name = "Température ECS";
     _mqttEntities.tempECS.component = "sensor";
-    _mqttEntities.tempECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureECS"}), 0, true);
-    _mqttEntities.tempECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureECS", "set"}), 0, true);
+    _mqttEntities.tempECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "temperatureECS"}), 0, true);
+    _mqttEntities.tempECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "temperatureECS", "set"}), 0, true);
     _mqttEntities.tempECS.set("device_class", "temperature");
     _mqttEntities.tempECS.set("state_class", "measurement");
     _mqttEntities.tempECS.set("unit_of_measurement", "°C");
@@ -20,7 +20,7 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.tempCDC.id = "temperatureCDC";
     _mqttEntities.tempCDC.name = "Température CDC";
     _mqttEntities.tempCDC.component = "sensor";
-    _mqttEntities.tempCDC.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "temperatureCDC"}), 0, true);
+    _mqttEntities.tempCDC.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "temperatureCDC"}), 0, true);
     _mqttEntities.tempCDC.set("device_class", "temperature");
     _mqttEntities.tempCDC.set("state_class", "measurement");
     _mqttEntities.tempCDC.set("unit_of_measurement", "°C");
@@ -41,7 +41,7 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.consommationChauffage.id = "consommationChauffage";
     _mqttEntities.consommationChauffage.name = "Consommation chauffage";
     _mqttEntities.consommationChauffage.component = "sensor";
-    _mqttEntities.consommationChauffage.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "consommationChauffage"}), 0, true);
+    _mqttEntities.consommationChauffage.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "consommationChauffage"}), 0, true);
     _mqttEntities.consommationChauffage.set("device_class", "energy");
     _mqttEntities.consommationChauffage.set("state_class", "total_increasing");
     _mqttEntities.consommationChauffage.set("unit_of_measurement", "kWh");
@@ -50,7 +50,7 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.consommationECS.id = "consommationECS";
     _mqttEntities.consommationECS.name = "Consommation ECS";
     _mqttEntities.consommationECS.component = "sensor";
-    _mqttEntities.consommationECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "consommationECS"}), 0, true);
+    _mqttEntities.consommationECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "consommationECS"}), 0, true);
     _mqttEntities.consommationECS.set("device_class", "energy");
     _mqttEntities.consommationECS.set("state_class", "total_increasing");
     _mqttEntities.consommationECS.set("unit_of_measurement", "kWh");
@@ -59,8 +59,8 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.modeECS.id = "modeECS";
     _mqttEntities.modeECS.name = "Mode ECS";
     _mqttEntities.modeECS.component = "select";
-    _mqttEntities.modeECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "modeECS"}), 0, true);
-    _mqttEntities.modeECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "modeECS", "set"}), 0, true);
+    _mqttEntities.modeECS.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "modeECS"}), 0, true);
+    _mqttEntities.modeECS.commandTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "modeECS", "set"}), 0, true);
     _mqttEntities.modeECS.set("icon", "mdi:tune-variant");
     _mqttEntities.modeECS.set("entity_category", "config");
     _mqttEntities.modeECS.setRaw("options", R"(["Max","Eco","Eco Horaires","Eco+", "Eco+ Horaires", "Stop"])");
@@ -75,7 +75,7 @@ void Chaudiere::begin(std::function<void(const String&)> modeEcsCommandCb) {
     _mqttEntities.pression.id = "pression";
     _mqttEntities.pression.name = "Pression";
     _mqttEntities.pression.component = "sensor";
-    _mqttEntities.pression.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "connect", "pression"}), 0, true);
+    _mqttEntities.pression.stateTopic = MqttTopic(MqttManager::compose({device->baseTopic, "chaudiere", "pression"}), 0, true);
     _mqttEntities.pression.set("device_class", "pressure");
     _mqttEntities.pression.set("unit_of_measurement", "bar");
     _mqtt.registerEntity(*device, _mqttEntities.pression, true);
