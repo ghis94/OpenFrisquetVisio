@@ -5,7 +5,8 @@
 FrisquetManager::FrisquetManager(FrisquetRadio &radio, Config &cfg, MqttManager &mqtt)
     :   _radio(radio), _cfg(cfg), _mqtt(mqtt),
         _zone1(ID_ZONE_1, mqtt), _zone2(ID_ZONE_2, mqtt), _zone3(ID_ZONE_3, mqtt),
-        _sondeExterieure(radio, cfg, mqtt), _connect(radio, cfg, mqtt, _zone1, _zone2, _zone3),
+        _chaudiere(mqtt, cfg),
+        _sondeExterieure(radio, cfg, mqtt), _connect(radio, cfg, mqtt, _zone1, _zone2, _zone3, _chaudiere),
         _satelliteZ1(radio, cfg, mqtt, _zone1), _satelliteZ2(radio, cfg, mqtt, _zone2), _satelliteZ3(radio, cfg, mqtt, _zone3) {}
 
 void FrisquetManager::begin()
@@ -50,6 +51,9 @@ void FrisquetManager::begin()
     }
 
     if (_cfg.useConnect()) {
+        _chaudiere.begin([this](const String& payload) {
+            _connect.handleModeEcsCommand(payload);
+        });
         _connect.begin();
         if (!_cfg.useConnectPassive()) {
             _connect.recupererDate();
