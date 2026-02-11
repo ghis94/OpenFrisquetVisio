@@ -46,4 +46,17 @@ private:
   void initMqtt();
   void initPortal();
   void initOta();
+
+  // Affichage OLED à la demande (bouton device)
+  void initButtons();
+  void handleDisplayButtons();
+  void showDisplay();
+  void hideDisplay();
+
+  static constexpr uint8_t DISPLAY_BUTTON_COUNT = 2;
+  static constexpr uint32_t DISPLAY_TIMEOUT_MS = 10000;
+  uint8_t _displayButtonPins[DISPLAY_BUTTON_COUNT] = {0, 21};
+  bool _displayButtonState[DISPLAY_BUTTON_COUNT] = {true, true};
+  bool _displayEnabled = false;
+  uint32_t _displayDeadlineMs = 0;
 };
