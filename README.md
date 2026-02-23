@@ -53,6 +53,11 @@ Deux modes possibles :
 - Envoi de trame radio personnalisée (debug)
 - Lecture de zones mémoire (debug)
 
+### 🖥️ Affichage OLED (Heltec)
+- L’écran OLED reste éteint par défaut pour limiter l’affichage permanent.
+- L’affichage est activé **uniquement à l’appui sur un bouton physique** de la carte.
+- Extinction automatique de l’écran après quelques secondes.
+
 ### 🔁 Mise à jour OTA
 - Mise à jour du firmware directement via WiFi
 
