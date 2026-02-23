@@ -57,6 +57,7 @@ Deux modes possibles :
 - L’écran OLED reste éteint par défaut pour limiter l’affichage permanent.
 - L’affichage est activé **uniquement à l’appui sur un bouton physique** de la carte.
 - Extinction automatique de l’écran après quelques secondes.
+- **Contenu affiché actuellement :** aucun écran d’informations métier spécifique n’est dessiné par le firmware (pas de rendu détaillé WiFi/MQTT/températures dans cette branche). La logique actuelle gère l’allumage/extinction à la demande.
 
 ### 🔁 Mise à jour OTA
 - Mise à jour du firmware directement via WiFi
