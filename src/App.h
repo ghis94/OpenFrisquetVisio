@@ -52,11 +52,17 @@ private:
   void handleDisplayButtons();
   void showDisplay();
   void hideDisplay();
+  void updateDisplay(bool force = false);
 
   static constexpr uint8_t DISPLAY_BUTTON_COUNT = 2;
   static constexpr uint32_t DISPLAY_TIMEOUT_MS = 10000;
+  static constexpr uint32_t DISPLAY_REFRESH_MS = 1000;
+  static constexpr uint32_t DISPLAY_PAGE_ROTATE_MS = 2500;
   uint8_t _displayButtonPins[DISPLAY_BUTTON_COUNT] = {0, 21};
   bool _displayButtonState[DISPLAY_BUTTON_COUNT] = {true, true};
   bool _displayEnabled = false;
   uint32_t _displayDeadlineMs = 0;
+  uint32_t _lastDisplayMs = 0;
+  uint32_t _lastDisplayPageMs = 0;
+  uint8_t _displayPage = 0;
 };
